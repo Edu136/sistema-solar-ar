@@ -40,24 +40,56 @@
     button { font-family: inherit; color: inherit; cursor: pointer; }
     button:focus-visible, input:focus-visible { outline: 2px solid var(--sol); outline-offset: 2px; }
 
-    .controles {
+    a-scene canvas { touch-action: none; }
+
+    .topo {
       position: fixed;
       top: calc(env(safe-area-inset-top, 0px) + 12px);
       left: 12px;
       right: 12px;
       z-index: 20;
+      max-width: 560px;
+      margin: 0 auto;
       display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 8px 10px;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .topo[hidden] { display: none; }
+
+    .controles, .ajustes {
       background: var(--vidro);
       border: 1px solid var(--linha);
-      border-radius: 999px;
+      border-radius: var(--raio);
       backdrop-filter: blur(10px);
       -webkit-backdrop-filter: blur(10px);
-      max-width: 520px;
-      margin: 0 auto;
     }
+    .controles {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px 10px;
+      padding: 8px 10px;
+    }
+
+    .ajustes {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      padding: 12px 14px;
+      font-size: 0.82rem;
+    }
+    .ajustes[hidden] { display: none; }
+    .linha-ajuste {
+      display: grid;
+      grid-template-columns: 3.4em 1fr 3.6em;
+      align-items: center;
+      gap: 10px;
+      color: var(--texto-suave);
+    }
+    .linha-ajuste input { width: 100%; accent-color: var(--sol); }
+    .linha-ajuste output { color: var(--texto); text-align: right; font-variant-numeric: tabular-nums; }
+    .ajustes-rodape { display: flex; align-items: center; gap: 10px; }
+    .ajustes-rodape p { flex: 1; margin: 0; color: var(--texto-suave); line-height: 1.4; }
     .controles .titulo {
       font-weight: 600;
       font-size: 0.95rem;
@@ -236,21 +268,42 @@
 
     <!-- Copia a pose do marcador enquanto ele é visto; ao perdê-lo, mantém a última -->
     <a-entity id="ancora" visible="false" ancora-marcador="alvo: #alvo">
-      <!-- Girado 90° para o sistema ficar "deitado" sobre a imagem -->
-      <a-entity id="sistema" rotation="90 0 0" position="0 0 0.08" scale="0.75 0.75 0.75"></a-entity>
+      <!-- Recebe o zoom e o deslocamento X/Y/Z escolhidos pelo usuário -->
+      <a-entity id="ajuste">
+        <!-- Girado 90° para o sistema ficar "deitado" sobre a imagem -->
+        <a-entity id="sistema" rotation="90 0 0" position="0 0 0.08" scale="0.75 0.75 0.75"></a-entity>
+      </a-entity>
     </a-entity>
   </a-scene>
 
-  <div class="controles" role="toolbar" aria-label="Controles da simulação">
-    <div class="titulo"><span>Sistema Solar</span></div>
-    <div class="espaco"></div>
-    <label class="velocidade">
-      Velocidade
-      <input id="velocidade" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Velocidade das órbitas">
-      <output id="velocidadeValor">1×</output>
-    </label>
-    <button id="btnPausa" class="botao-chip" aria-pressed="false">Pausar</button>
-    <button id="btnOrbitas" class="botao-chip" aria-pressed="true">Órbitas</button>
+  <div class="topo">
+    <div class="controles" role="toolbar" aria-label="Controles da simulação">
+      <div class="titulo"><span>Sistema Solar</span></div>
+      <div class="espaco"></div>
+      <label class="velocidade">
+        Velocidade
+        <input id="velocidade" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Velocidade das órbitas">
+        <output id="velocidadeValor">1×</output>
+      </label>
+      <button id="btnPausa" class="botao-chip" aria-pressed="false">Pausar</button>
+      <button id="btnOrbitas" class="botao-chip" aria-pressed="true">Órbitas</button>
+      <button id="btnAjustes" class="botao-chip" aria-pressed="false" aria-controls="ajustes">Ajustar</button>
+    </div>
+
+    <div id="ajustes" class="ajustes" hidden>
+      <label class="linha-ajuste"><span>Zoom</span>
+        <input id="ajZoom" type="range" min="0.3" max="4" step="0.05" value="1"><output></output></label>
+      <label class="linha-ajuste"><span>Eixo X</span>
+        <input id="ajX" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
+      <label class="linha-ajuste"><span>Eixo Y</span>
+        <input id="ajY" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
+      <label class="linha-ajuste"><span>Eixo Z</span>
+        <input id="ajZ" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
+      <div class="ajustes-rodape">
+        <p>Na tela: arraste com um dedo para mover e use dois dedos para dar zoom.</p>
+        <button id="btnCentralizar" class="botao-chip">Centralizar</button>
+      </div>
+    </div>
   </div>
 
   <div id="aviso" class="aviso">
@@ -611,7 +664,7 @@
   function areaDeToque(raio, pai, id) {
     const alvo = criar('a-sphere', { radius: Math.max(raio * 1.8, 0.045), class: 'clicavel', 'segments-width': 12, 'segments-height': 8 }, pai);
     alvo.setAttribute('material', { transparent: true, opacity: 0, depthWrite: false });
-    alvo.addEventListener('click', () => selecionar(id));
+    alvo.addEventListener('click', () => { if (!arrastou) selecionar(id); });
   }
 
   function montarCena() {
@@ -724,6 +777,93 @@
     btnOrbitas.setAttribute('aria-pressed', String(mostrar));
     document.querySelectorAll('.linha-orbita').forEach(l => l.setAttribute('visible', mostrar));
   });
+
+  const ajuste = document.querySelector('#ajuste').object3D;
+  const transformacao = { zoom: 1, x: 0, y: 0, z: 0 };
+  const camposAjuste = {
+    zoom: document.querySelector('#ajZoom'),
+    x: document.querySelector('#ajX'),
+    y: document.querySelector('#ajY'),
+    z: document.querySelector('#ajZ'),
+  };
+  const numero = (v, casas) => v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+
+  function definirAjuste(chave, valor) {
+    const campo = camposAjuste[chave];
+    transformacao[chave] = Math.min(parseFloat(campo.max), Math.max(parseFloat(campo.min), valor));
+    campo.value = transformacao[chave];
+    campo.nextElementSibling.textContent = chave === 'zoom'
+      ? numero(transformacao.zoom, 2) + '×'
+      : numero(transformacao[chave], 2);
+    ajuste.position.set(transformacao.x, transformacao.y, transformacao.z);
+    ajuste.scale.setScalar(transformacao.zoom);
+  }
+
+  function centralizar() {
+    definirAjuste('zoom', 1);
+    ['x', 'y', 'z'].forEach(eixo => definirAjuste(eixo, 0));
+  }
+
+  Object.entries(camposAjuste).forEach(([chave, campo]) =>
+    campo.addEventListener('input', () => definirAjuste(chave, parseFloat(campo.value))));
+  document.querySelector('#btnCentralizar').addEventListener('click', centralizar);
+  centralizar();
+
+  const btnAjustes = document.querySelector('#btnAjustes');
+  btnAjustes.addEventListener('click', () => {
+    const abrir = btnAjustes.getAttribute('aria-pressed') !== 'true';
+    btnAjustes.setAttribute('aria-pressed', String(abrir));
+    document.querySelector('#ajustes').hidden = !abrir;
+  });
+
+  // Gestos na cena: um dedo move em X/Y, dois dedos (ou a roda do mouse) dão zoom.
+  // "arrastou" impede que soltar o dedo depois de um gesto selecione um planeta.
+  const ponteiros = new Map();
+  let gesto = null;
+  let arrastou = false;
+  const naCena = e => e.target instanceof Element && e.target.closest('a-scene');
+  const distancia = (a, b) => Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
+
+  function iniciarGesto() {
+    const p = [...ponteiros.values()];
+    if (p.length >= 2) gesto = { tipo: 'pinca', dist: distancia(p[0], p[1]), zoom: transformacao.zoom };
+    else if (p.length === 1) gesto = { tipo: 'arrasto', x: p[0].x, y: p[0].y, ox: transformacao.x, oy: transformacao.y };
+    else gesto = null;
+  }
+
+  window.addEventListener('pointerdown', e => {
+    if (!naCena(e)) return;
+    if (ponteiros.size === 0) arrastou = false;
+    ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    iniciarGesto();
+  });
+
+  window.addEventListener('pointermove', e => {
+    if (!ponteiros.has(e.pointerId) || !gesto) return;
+    ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    const p = [...ponteiros.values()];
+    if (gesto.tipo === 'pinca' && p.length >= 2) {
+      arrastou = true;
+      definirAjuste('zoom', gesto.zoom * distancia(p[0], p[1]) / gesto.dist);
+    } else if (gesto.tipo === 'arrasto') {
+      const dx = p[0].x - gesto.x, dy = p[0].y - gesto.y;
+      if (Math.hypot(dx, dy) > 8) arrastou = true;
+      if (!arrastou) return;
+      const fator = 2 / Math.min(innerWidth, innerHeight);
+      definirAjuste('x', gesto.ox + dx * fator);
+      definirAjuste('y', gesto.oy - dy * fator);
+    }
+  });
+
+  ['pointerup', 'pointercancel'].forEach(tipo => window.addEventListener(tipo, e => {
+    if (ponteiros.delete(e.pointerId)) iniciarGesto();
+  }));
+
+  window.addEventListener('wheel', e => {
+    if (!naCena(e)) return;
+    e.preventDefault();
+    definirAjuste('zoom', transformacao.zoom * Math.exp(-e.deltaY * 0.001));
+  }, { passive: false });
 
   const aviso = document.querySelector('#aviso');
   function mostrarAviso(titulo, texto, { erro = false, marcador = false } = {}) {
