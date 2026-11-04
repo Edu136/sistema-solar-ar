@@ -23,7 +23,7 @@ Os três precisam ficar na mesma pasta.
 - Painel com diâmetro, distância do Sol, duração do ano, rotação, luas e uma curiosidade, com botões para navegar entre os astros.
 - Controle de velocidade, botão de pausa e opção de mostrar ou esconder as linhas das órbitas.
 - Depois de reconhecer o marcador, o Sistema Solar fica fixo na tela mesmo se a câmera sair dele. Ao apontar de novo, ele se reposiciona.
-- Botão **Ajustar** com zoom e deslocamento nos eixos X, Y e Z. Na própria cena: arraste com um dedo para mover, use dois dedos (ou a roda do mouse) para dar zoom.
+- Botão **Ajustar** com zoom e rotação nos eixos X, Y e Z. Na própria cena: arraste com um dedo para girar o sistema em 3D; com dois dedos, faça pinça para dar zoom, arraste para mover e torça para girar em Z. No computador, arraste com o mouse para girar e use a roda para dar zoom.
 - Botão **Finalizar**, que desliga a câmera e encerra a experiência.
 - O aviso mostra a imagem do marcador, com opção de abrir em tela cheia ou baixar.
 - As texturas dos planetas são geradas por código, então não depende de baixar imagens.
