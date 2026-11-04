@@ -81,7 +81,7 @@
     .ajustes[hidden] { display: none; }
     .linha-ajuste {
       display: grid;
-      grid-template-columns: 3.4em 1fr 3.6em;
+      grid-template-columns: 4.6em 1fr 3.6em;
       align-items: center;
       gap: 10px;
       color: var(--texto-suave);
@@ -269,7 +269,7 @@
 
     <!-- Copia a pose do marcador enquanto ele é visto; ao perdê-lo, mantém a última -->
     <a-entity id="ancora" visible="false" ancora-marcador="alvo: #alvo">
-      <!-- Recebe o zoom e o deslocamento X/Y/Z escolhidos pelo usuário -->
+      <!-- Recebe o zoom, a rotação e o deslocamento escolhidos pelo usuário; gira em torno do Sol -->
       <a-entity id="ajuste">
         <!-- Girado 90° para o sistema ficar "deitado" sobre a imagem -->
         <a-entity id="sistema" rotation="90 0 0" position="0 0 0.08" scale="0.75 0.75 0.75"></a-entity>
@@ -295,14 +295,14 @@
     <div id="ajustes" class="ajustes" hidden>
       <label class="linha-ajuste"><span>Zoom</span>
         <input id="ajZoom" type="range" min="0.3" max="4" step="0.05" value="1"><output></output></label>
-      <label class="linha-ajuste"><span>Eixo X</span>
-        <input id="ajX" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
-      <label class="linha-ajuste"><span>Eixo Y</span>
-        <input id="ajY" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
-      <label class="linha-ajuste"><span>Eixo Z</span>
-        <input id="ajZ" type="range" min="-1" max="1" step="0.01" value="0"><output></output></label>
+      <label class="linha-ajuste"><span>Girar X</span>
+        <input id="ajRx" type="range" min="-180" max="180" step="1" value="0"><output></output></label>
+      <label class="linha-ajuste"><span>Girar Y</span>
+        <input id="ajRy" type="range" min="-180" max="180" step="1" value="0"><output></output></label>
+      <label class="linha-ajuste"><span>Girar Z</span>
+        <input id="ajRz" type="range" min="-180" max="180" step="1" value="0"><output></output></label>
       <div class="ajustes-rodape">
-        <p>Na tela: arraste com um dedo para mover e use dois dedos para dar zoom.</p>
+        <p>Na tela: um dedo gira. Dois dedos: pinça dá zoom, arrastar move e torcer gira em Z.</p>
         <button id="btnCentralizar" class="botao-chip">Centralizar</button>
       </div>
     </div>
@@ -789,33 +789,45 @@
   });
 
   const ajuste = document.querySelector('#ajuste').object3D;
-  const transformacao = { zoom: 1, x: 0, y: 0, z: 0 };
+  const transformacao = { zoom: 1, rx: 0, ry: 0, rz: 0, x: 0, y: 0 };
   const camposAjuste = {
     zoom: document.querySelector('#ajZoom'),
-    x: document.querySelector('#ajX'),
-    y: document.querySelector('#ajY'),
-    z: document.querySelector('#ajZ'),
+    rx: document.querySelector('#ajRx'),
+    ry: document.querySelector('#ajRy'),
+    rz: document.querySelector('#ajRz'),
   };
+  const LIMITE_DESLOCAMENTO = 1.5;
+  const grausParaRad = THREE.MathUtils.degToRad;
   const numero = (v, casas) => v.toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas });
+  const normalizarAngulo = g => ((g + 180) % 360 + 360) % 360 - 180;
 
-  function definirAjuste(chave, valor) {
-    const campo = camposAjuste[chave];
-    transformacao[chave] = Math.min(parseFloat(campo.max), Math.max(parseFloat(campo.min), valor));
-    campo.value = transformacao[chave];
-    campo.nextElementSibling.textContent = chave === 'zoom'
-      ? numero(transformacao.zoom, 2) + '×'
-      : numero(transformacao[chave], 2);
-    ajuste.position.set(transformacao.x, transformacao.y, transformacao.z);
-    ajuste.scale.setScalar(transformacao.zoom);
+  function aplicarAjuste() {
+    const t = transformacao;
+    ajuste.position.set(t.x, t.y, 0);
+    ajuste.rotation.set(grausParaRad(t.rx), grausParaRad(t.ry), grausParaRad(t.rz));
+    ajuste.scale.setScalar(t.zoom);
+    for (const [chave, campo] of Object.entries(camposAjuste)) {
+      campo.value = t[chave];
+      campo.nextElementSibling.textContent = chave === 'zoom'
+        ? numero(t.zoom, 2) + '×'
+        : Math.round(t[chave]) + '°';
+    }
   }
 
-  function centralizar() {
-    definirAjuste('zoom', 1);
-    ['x', 'y', 'z'].forEach(eixo => definirAjuste(eixo, 0));
+  function definirAjuste(valores) {
+    const t = transformacao;
+    for (const [chave, valor] of Object.entries(valores)) {
+      if (chave === 'zoom') t.zoom = Math.min(4, Math.max(0.3, valor));
+      else if (chave === 'x' || chave === 'y') t[chave] = Math.min(LIMITE_DESLOCAMENTO, Math.max(-LIMITE_DESLOCAMENTO, valor));
+      else t[chave] = normalizarAngulo(valor);
+    }
+    aplicarAjuste();
   }
+
+  const centralizar = () => definirAjuste({ zoom: 1, rx: 0, ry: 0, rz: 0, x: 0, y: 0 });
 
   Object.entries(camposAjuste).forEach(([chave, campo]) =>
-    campo.addEventListener('input', () => definirAjuste(chave, parseFloat(campo.value))));
+    campo.addEventListener('input', () => definirAjuste({ [chave]: parseFloat(campo.value) })));
   document.querySelector('#btnCentralizar').addEventListener('click', centralizar);
   centralizar();
 
@@ -826,18 +838,29 @@
     document.querySelector('#ajustes').hidden = !abrir;
   });
 
-  // Gestos na cena: um dedo move em X/Y, dois dedos (ou a roda do mouse) dão zoom.
+  // Gestos na cena. Um dedo (ou o mouse) gira em X/Y; dois dedos fazem pinça (zoom),
+  // arrasto (move) e torção (gira em Z). A roda do mouse também dá zoom.
   // "arrastou" impede que soltar o dedo depois de um gesto selecione um planeta.
   const ponteiros = new Map();
   let gesto = null;
   let arrastou = false;
   const naCena = e => e.target instanceof Element && e.target.closest('a-scene');
-  const distancia = (a, b) => Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1);
+  const GRAUS_POR_PIXEL = 0.4;
+
+  function medirDoisDedos([a, b]) {
+    return {
+      dist: Math.max(Math.hypot(a.x - b.x, a.y - b.y), 1),
+      angulo: Math.atan2(b.y - a.y, b.x - a.x),
+      cx: (a.x + b.x) / 2,
+      cy: (a.y + b.y) / 2,
+    };
+  }
 
   function iniciarGesto() {
     const p = [...ponteiros.values()];
-    if (p.length >= 2) gesto = { tipo: 'pinca', dist: distancia(p[0], p[1]), zoom: transformacao.zoom };
-    else if (p.length === 1) gesto = { tipo: 'arrasto', x: p[0].x, y: p[0].y, ox: transformacao.x, oy: transformacao.y };
+    const inicio = { ...transformacao };
+    if (p.length >= 2) gesto = { tipo: 'dois', medida: medirDoisDedos(p), inicio };
+    else if (p.length === 1) gesto = { tipo: 'girar', x: p[0].x, y: p[0].y, inicio };
     else gesto = null;
   }
 
@@ -852,16 +875,23 @@
     if (!ponteiros.has(e.pointerId) || !gesto) return;
     ponteiros.set(e.pointerId, { x: e.clientX, y: e.clientY });
     const p = [...ponteiros.values()];
-    if (gesto.tipo === 'pinca' && p.length >= 2) {
+    const ini = gesto.inicio;
+
+    if (gesto.tipo === 'dois' && p.length >= 2) {
       arrastou = true;
-      definirAjuste('zoom', gesto.zoom * distancia(p[0], p[1]) / gesto.dist);
-    } else if (gesto.tipo === 'arrasto') {
+      const m = medirDoisDedos(p), m0 = gesto.medida;
+      const fator = 2 / Math.min(innerWidth, innerHeight);
+      definirAjuste({
+        zoom: ini.zoom * m.dist / m0.dist,
+        rz: ini.rz - THREE.MathUtils.radToDeg(m.angulo - m0.angulo),
+        x: ini.x + (m.cx - m0.cx) * fator,
+        y: ini.y - (m.cy - m0.cy) * fator,
+      });
+    } else if (gesto.tipo === 'girar') {
       const dx = p[0].x - gesto.x, dy = p[0].y - gesto.y;
       if (Math.hypot(dx, dy) > 8) arrastou = true;
       if (!arrastou) return;
-      const fator = 2 / Math.min(innerWidth, innerHeight);
-      definirAjuste('x', gesto.ox + dx * fator);
-      definirAjuste('y', gesto.oy - dy * fator);
+      definirAjuste({ ry: ini.ry + dx * GRAUS_POR_PIXEL, rx: ini.rx + dy * GRAUS_POR_PIXEL });
     }
   });
 
@@ -872,7 +902,7 @@
   window.addEventListener('wheel', e => {
     if (!naCena(e)) return;
     e.preventDefault();
-    definirAjuste('zoom', transformacao.zoom * Math.exp(-e.deltaY * 0.001));
+    definirAjuste({ zoom: transformacao.zoom * Math.exp(-e.deltaY * 0.001) });
   }, { passive: false });
 
   const aviso = document.querySelector('#aviso');
