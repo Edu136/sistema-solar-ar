@@ -595,6 +595,83 @@
     });
   }
 
+  const painel = document.querySelector('#painel');
+  let indiceAtual = -1;
+
+  function selecionar(id) {
+    const indice = ASTROS.findIndex(a => a.id === id);
+    if (indice < 0) return;
+    if (indiceAtual >= 0) selecoes[ASTROS[indiceAtual].id].setAttribute('visible', false);
+    indiceAtual = indice;
+    const astro = ASTROS[indice];
+    selecoes[astro.id].setAttribute('visible', true);
+
+    painel.style.setProperty('--destaque', astro.cor);
+    document.querySelector('#painelNome').textContent = astro.nome;
+    document.querySelector('#painelTipo').textContent = astro.tipo;
+    document.querySelector('#painelFatos').innerHTML = astro.fatos
+      .map(([rotulo, valor]) => `<div><dt>${rotulo}</dt><dd>${valor}</dd></div>`).join('');
+    document.querySelector('#painelCuriosidade').innerHTML = astro.curiosidade;
+
+    painel.classList.add('aberto');
+    painel.setAttribute('aria-hidden', 'false');
+  }
+
+  function fecharPainel() {
+    if (indiceAtual >= 0) selecoes[ASTROS[indiceAtual].id].setAttribute('visible', false);
+    indiceAtual = -1;
+    painel.classList.remove('aberto');
+    painel.setAttribute('aria-hidden', 'true');
+  }
+
+  document.querySelector('#btnFechar').addEventListener('click', fecharPainel);
+  document.querySelector('#btnAnterior').addEventListener('click', () =>
+    selecionar(ASTROS[(indiceAtual - 1 + ASTROS.length) % ASTROS.length].id));
+  document.querySelector('#btnProximo').addEventListener('click', () =>
+    selecionar(ASTROS[(indiceAtual + 1) % ASTROS.length].id));
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharPainel(); });
+
+  const campoVel = document.querySelector('#velocidade');
+  const saidaVel = document.querySelector('#velocidadeValor');
+  campoVel.addEventListener('input', () => {
+    estado.velocidade = parseFloat(campoVel.value);
+    saidaVel.textContent = estado.velocidade.toLocaleString('pt-BR') + '×';
+  });
+
+  const btnPausa = document.querySelector('#btnPausa');
+  btnPausa.addEventListener('click', () => {
+    estado.pausado = !estado.pausado;
+    btnPausa.textContent = estado.pausado ? 'Continuar' : 'Pausar';
+    btnPausa.setAttribute('aria-pressed', String(estado.pausado));
+  });
+
+  const btnOrbitas = document.querySelector('#btnOrbitas');
+  btnOrbitas.addEventListener('click', () => {
+    const mostrar = btnOrbitas.getAttribute('aria-pressed') !== 'true';
+    btnOrbitas.setAttribute('aria-pressed', String(mostrar));
+    document.querySelectorAll('.linha-orbita').forEach(l => l.setAttribute('visible', mostrar));
+  });
+
+  const aviso = document.querySelector('#aviso');
+  function mostrarAviso(titulo, texto, erro = false) {
+    aviso.innerHTML = `<h2>${titulo}</h2><p>${texto}</p>`;
+    aviso.classList.toggle('erro', erro);
+    aviso.classList.remove('escondido');
+  }
+
+  const cena = document.querySelector('a-scene');
+  const alvo = document.querySelector('#alvo');
+
+  cena.addEventListener('arReady', () =>
+    mostrarAviso('Aponte a câmera para o marcador', 'Use a imagem do marcador impressa ou aberta em outra tela.'));
+  cena.addEventListener('arError', () =>
+    mostrarAviso('Não foi possível abrir a câmera',
+      'Confira se o site está em HTTPS e se a permissão da câmera foi liberada nas configurações do navegador.', true));
+  alvo.addEventListener('targetFound', () => aviso.classList.add('escondido'));
+  alvo.addEventListener('targetLost', () => {
+    mostrarAviso('Marcador perdido', 'Aponte de novo para a imagem para ver o Sistema Solar.');
+  });
+
   montarCena();
   </script>
 </body>
