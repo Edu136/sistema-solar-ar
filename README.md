@@ -22,6 +22,10 @@ Os três precisam ficar na mesma pasta.
 - A Lua orbitando a Terra, os anéis de Saturno, a Grande Mancha Vermelha de Júpiter e o cinturão de asteroides.
 - Painel com diâmetro, distância do Sol, duração do ano, rotação, luas e uma curiosidade, com botões para navegar entre os astros.
 - Controle de velocidade, botão de pausa e opção de mostrar ou esconder as linhas das órbitas.
+- Depois de reconhecer o marcador, o Sistema Solar fica fixo na tela mesmo se a câmera sair dele. Ao apontar de novo, ele se reposiciona.
+- Botão **Ajustar** com zoom e deslocamento nos eixos X, Y e Z. Na própria cena: arraste com um dedo para mover, use dois dedos (ou a roda do mouse) para dar zoom.
+- Botão **Finalizar**, que desliga a câmera e encerra a experiência.
+- O aviso mostra a imagem do marcador, com opção de abrir em tela cheia ou baixar.
 - As texturas dos planetas são geradas por código, então não depende de baixar imagens.
 
 ## Como publicar e testar no celular (GitHub Pages)
