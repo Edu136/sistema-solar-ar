@@ -115,6 +115,7 @@
       white-space: nowrap;
     }
     .botao-chip[aria-pressed="true"] { background: rgba(245, 184, 65, 0.18); border-color: rgba(245, 184, 65, 0.6); }
+    .botao-finalizar { border-color: rgba(255, 120, 100, 0.6); color: #FFB4A8; }
     .velocidade { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--texto-suave); }
     .velocidade input { width: 80px; accent-color: var(--sol); }
     .velocidade output { min-width: 2.6em; color: var(--texto); font-variant-numeric: tabular-nums; }
@@ -152,7 +153,7 @@
       font-size: 0.88rem;
     }
 
-    .marcador-tela {
+    .tela-cheia {
       position: fixed;
       inset: 0;
       z-index: 40;
@@ -165,13 +166,13 @@
       background: rgba(0, 0, 0, 0.94);
       text-align: center;
     }
-    .marcador-tela[hidden] { display: none; }
-    .marcador-tela h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
-    .marcador-tela img { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 12px; }
-    .marcador-tela p { margin: 0; max-width: 400px; font-size: 0.88rem; line-height: 1.5; color: var(--texto-suave); }
-    .marcador-tela p strong { color: var(--texto); font-weight: 600; word-break: break-all; }
-    .marcador-acoes { display: flex; gap: 10px; }
-    .marcador-acoes a, .marcador-acoes button {
+    .tela-cheia[hidden] { display: none; }
+    .tela-cheia h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+    .tela-cheia img { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 12px; }
+    .tela-cheia p { margin: 0; max-width: 400px; font-size: 0.88rem; line-height: 1.5; color: var(--texto-suave); }
+    .tela-cheia p strong { color: var(--texto); font-weight: 600; word-break: break-all; }
+    .tela-acoes { display: flex; gap: 10px; }
+    .tela-acoes a, .tela-acoes button {
       padding: 10px 18px;
       border-radius: 12px;
       border: 1px solid var(--linha);
@@ -288,6 +289,7 @@
       <button id="btnPausa" class="botao-chip" aria-pressed="false">Pausar</button>
       <button id="btnOrbitas" class="botao-chip" aria-pressed="true">Órbitas</button>
       <button id="btnAjustes" class="botao-chip" aria-pressed="false" aria-controls="ajustes">Ajustar</button>
+      <button id="btnFinalizar" class="botao-chip botao-finalizar">Finalizar</button>
     </div>
 
     <div id="ajustes" class="ajustes" hidden>
@@ -315,14 +317,22 @@
     </div>
   </div>
 
-  <div id="telaMarcador" class="marcador-tela" role="dialog" aria-modal="true" aria-labelledby="telaMarcadorTitulo" hidden>
+  <div id="telaMarcador" class="tela-cheia" role="dialog" aria-modal="true" aria-labelledby="telaMarcadorTitulo" hidden>
     <h2 id="telaMarcadorTitulo">Este é o marcador</h2>
     <img src="marcador.png" alt="Imagem do marcador">
     <p>Imprima esta imagem ou abra-a em outra tela (computador ou tablet) e aponte a câmera do celular para ela.
       No computador, acesse <strong id="linkMarcador"></strong></p>
-    <div class="marcador-acoes">
+    <div class="tela-acoes">
       <a href="marcador.png" download="marcador.png">Baixar imagem</a>
       <button id="btnFecharMarcador">Fechar</button>
+    </div>
+  </div>
+
+  <div id="telaFim" class="tela-cheia" role="dialog" aria-modal="true" aria-labelledby="telaFimTitulo" hidden>
+    <h2 id="telaFimTitulo">Experiência finalizada</h2>
+    <p>A câmera foi desligada. Obrigado por explorar o Sistema Solar!</p>
+    <div class="tela-acoes">
+      <button id="btnRecomecar">Recomeçar</button>
     </div>
   </div>
 
@@ -893,6 +903,20 @@
   cena.addEventListener('arError', () =>
     mostrarAviso('Não foi possível abrir a câmera',
       'Confira se o site está em HTTPS e se a permissão da câmera foi liberada nas configurações do navegador.', { erro: true }));
+  document.querySelector('#btnFinalizar').addEventListener('click', () => {
+    const ar = cena.systems['mindar-image-system'];
+    try { ar.stop(); } catch (e) { /* câmera ainda não tinha iniciado */ }
+    cena.pause();
+    fecharPainel();
+    fecharMarcador();
+    clearTimeout(timerAviso);
+    aviso.classList.add('escondido');
+    document.querySelector('.topo').hidden = true;
+    document.querySelector('#telaFim').hidden = false;
+    document.querySelector('#btnRecomecar').focus();
+  });
+  document.querySelector('#btnRecomecar').addEventListener('click', () => location.reload());
+
   let timerAviso;
   alvo.addEventListener('targetFound', () => {
     clearTimeout(timerAviso);
