@@ -108,6 +108,47 @@
     .aviso.erro { border-color: rgba(255, 120, 100, 0.6); }
     .escondido { opacity: 0; pointer-events: none; }
 
+    .aviso-marcador { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+    .aviso-marcador[hidden] { display: none; }
+    .aviso-marcador img { width: 84px; border-radius: 8px; border: 1px solid var(--linha); }
+    .botao-destaque {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(245, 184, 65, 0.6);
+      background: rgba(245, 184, 65, 0.18);
+      font-size: 0.88rem;
+    }
+
+    .marcador-tela {
+      position: fixed;
+      inset: 0;
+      z-index: 40;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: calc(env(safe-area-inset-top, 0px) + 24px) 16px calc(env(safe-area-inset-bottom, 0px) + 24px);
+      background: rgba(0, 0, 0, 0.94);
+      text-align: center;
+    }
+    .marcador-tela[hidden] { display: none; }
+    .marcador-tela h2 { margin: 0; font-size: 1.15rem; font-weight: 600; }
+    .marcador-tela img { max-width: 100%; max-height: 60vh; object-fit: contain; border-radius: 12px; }
+    .marcador-tela p { margin: 0; max-width: 400px; font-size: 0.88rem; line-height: 1.5; color: var(--texto-suave); }
+    .marcador-tela p strong { color: var(--texto); font-weight: 600; word-break: break-all; }
+    .marcador-acoes { display: flex; gap: 10px; }
+    .marcador-acoes a, .marcador-acoes button {
+      padding: 10px 18px;
+      border-radius: 12px;
+      border: 1px solid var(--linha);
+      background: rgba(255, 255, 255, 0.08);
+      font-size: 0.9rem;
+      color: inherit;
+      text-decoration: none;
+    }
+
     .painel {
       position: fixed;
       left: 0; right: 0; bottom: 0;
@@ -210,8 +251,23 @@
   </div>
 
   <div id="aviso" class="aviso">
-    <h2>Carregando a câmera…</h2>
-    <p>Permita o acesso à câmera quando o navegador pedir.</p>
+    <h2 id="avisoTitulo">Carregando a câmera…</h2>
+    <p id="avisoTexto">Permita o acesso à câmera quando o navegador pedir.</p>
+    <div id="avisoMarcador" class="aviso-marcador" hidden>
+      <img src="marcador.png" alt="Imagem do marcador">
+      <button class="botao-destaque btn-ver-marcador">Ver marcador</button>
+    </div>
+  </div>
+
+  <div id="telaMarcador" class="marcador-tela" role="dialog" aria-modal="true" aria-labelledby="telaMarcadorTitulo" hidden>
+    <h2 id="telaMarcadorTitulo">Este é o marcador</h2>
+    <img src="marcador.png" alt="Imagem do marcador">
+    <p>Imprima esta imagem ou abra-a em outra tela (computador ou tablet) e aponte a câmera do celular para ela.
+      No computador, acesse <strong id="linkMarcador"></strong></p>
+    <div class="marcador-acoes">
+      <a href="marcador.png" download="marcador.png">Baixar imagem</a>
+      <button id="btnFecharMarcador">Fechar</button>
+    </div>
   </div>
 
   <section id="painel" class="painel" aria-live="polite" aria-hidden="true">
@@ -655,24 +711,36 @@
   });
 
   const aviso = document.querySelector('#aviso');
-  function mostrarAviso(titulo, texto, erro = false) {
-    aviso.innerHTML = `<h2>${titulo}</h2><p>${texto}</p>`;
+  function mostrarAviso(titulo, texto, { erro = false, marcador = false } = {}) {
+    document.querySelector('#avisoTitulo').textContent = titulo;
+    document.querySelector('#avisoTexto').textContent = texto;
+    document.querySelector('#avisoMarcador').hidden = !marcador;
     aviso.classList.toggle('erro', erro);
     aviso.classList.remove('escondido');
   }
+
+  const telaMarcador = document.querySelector('#telaMarcador');
+  document.querySelector('#linkMarcador').textContent = new URL('marcador.png', location.href).href;
+  function abrirMarcador() {
+    telaMarcador.hidden = false;
+    document.querySelector('#btnFecharMarcador').focus();
+  }
+  function fecharMarcador() { telaMarcador.hidden = true; }
+  document.querySelectorAll('.btn-ver-marcador').forEach(b => b.addEventListener('click', abrirMarcador));
+  document.querySelector('#btnFecharMarcador').addEventListener('click', fecharMarcador);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharMarcador(); });
 
   const cena = document.querySelector('a-scene');
   const alvo = document.querySelector('#alvo');
 
   cena.addEventListener('arReady', () =>
-    mostrarAviso('Aponte a câmera para o marcador', 'Use a imagem do marcador impressa ou aberta em outra tela.'));
+    mostrarAviso('Aponte a câmera para o marcador', 'Use esta imagem impressa ou aberta em outra tela.', { marcador: true }));
   cena.addEventListener('arError', () =>
     mostrarAviso('Não foi possível abrir a câmera',
-      'Confira se o site está em HTTPS e se a permissão da câmera foi liberada nas configurações do navegador.', true));
+      'Confira se o site está em HTTPS e se a permissão da câmera foi liberada nas configurações do navegador.', { erro: true }));
   alvo.addEventListener('targetFound', () => aviso.classList.add('escondido'));
-  alvo.addEventListener('targetLost', () => {
-    mostrarAviso('Marcador perdido', 'Aponte de novo para a imagem para ver o Sistema Solar.');
-  });
+  alvo.addEventListener('targetLost', () =>
+    mostrarAviso('Marcador perdido', 'Aponte de novo para a imagem para ver o Sistema Solar.', { marcador: true }));
 
   montarCena();
   </script>
