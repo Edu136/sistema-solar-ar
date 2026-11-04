@@ -232,7 +232,10 @@
 
     <a-entity light="type: ambient; intensity: 0.35"></a-entity>
 
-    <a-entity id="alvo" mindar-image-target="targetIndex: 0">
+    <a-entity id="alvo" mindar-image-target="targetIndex: 0"></a-entity>
+
+    <!-- Copia a pose do marcador enquanto ele é visto; ao perdê-lo, mantém a última -->
+    <a-entity id="ancora" visible="false" ancora-marcador="alvo: #alvo">
       <!-- Girado 90° para o sistema ficar "deitado" sobre a imagem -->
       <a-entity id="sistema" rotation="90 0 0" position="0 0 0.08" scale="0.75 0.75 0.75"></a-entity>
     </a-entity>
@@ -418,6 +421,18 @@
       if (estado.pausado || !dt) return;
       const seg = Math.min(dt, 100) / 1000;
       this.el.object3D.rotation.y += seg * (2 * Math.PI / this.data.periodo) * estado.velocidade;
+    }
+  });
+
+  AFRAME.registerComponent('ancora-marcador', {
+    schema: { alvo: { type: 'selector' } },
+    init() { this.el.object3D.matrixAutoUpdate = false; },
+    tick() {
+      const alvo = this.data.alvo.object3D;
+      if (!alvo.visible) return;
+      this.el.object3D.matrix.copy(alvo.matrix);
+      this.el.object3D.matrixWorldNeedsUpdate = true;
+      this.el.object3D.visible = true;
     }
   });
 
@@ -738,9 +753,16 @@
   cena.addEventListener('arError', () =>
     mostrarAviso('Não foi possível abrir a câmera',
       'Confira se o site está em HTTPS e se a permissão da câmera foi liberada nas configurações do navegador.', { erro: true }));
-  alvo.addEventListener('targetFound', () => aviso.classList.add('escondido'));
-  alvo.addEventListener('targetLost', () =>
-    mostrarAviso('Marcador perdido', 'Aponte de novo para a imagem para ver o Sistema Solar.', { marcador: true }));
+  let timerAviso;
+  alvo.addEventListener('targetFound', () => {
+    clearTimeout(timerAviso);
+    aviso.classList.add('escondido');
+  });
+  alvo.addEventListener('targetLost', () => {
+    mostrarAviso('Sistema Solar fixado na tela', 'Pode tirar a câmera do marcador. Aponte de novo para reposicioná-lo.');
+    clearTimeout(timerAviso);
+    timerAviso = setTimeout(() => aviso.classList.add('escondido'), 4000);
+  });
 
   montarCena();
   </script>
