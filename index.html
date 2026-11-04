@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Sistema Solar em Realidade Aumentada</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
+
+  <style>
+    :root {
+      --vidro: rgba(13, 24, 48, 0.86);
+      --vidro-forte: rgba(9, 17, 36, 0.94);
+      --texto: #F2F4FA;
+      --texto-suave: #A5B1CB;
+      --linha: rgba(255, 255, 255, 0.14);
+      --sol: #F5B841;
+      --destaque: #F5B841;
+      --raio: 18px;
+      --fonte: "Lexend", "Segoe UI", system-ui, -apple-system, sans-serif;
+    }
+
+    html, body {
+      margin: 0;
+      height: 100%;
+      overflow: hidden;
+      font-family: var(--fonte);
+      color: var(--texto);
+      background: #000;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    button { font-family: inherit; color: inherit; cursor: pointer; }
+    button:focus-visible, input:focus-visible { outline: 2px solid var(--sol); outline-offset: 2px; }
+
+    .controles {
+      position: fixed;
+      top: calc(env(safe-area-inset-top, 0px) + 12px);
+      left: 12px;
+      right: 12px;
+      z-index: 20;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 10px;
+      background: var(--vidro);
+      border: 1px solid var(--linha);
+      border-radius: 999px;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      max-width: 520px;
+      margin: 0 auto;
+    }
+    .controles .titulo {
+      font-weight: 600;
+      font-size: 0.95rem;
+      white-space: nowrap;
+      padding-left: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .controles .titulo::before {
+      content: "";
+      width: 12px; height: 12px; border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, #FFF3B0, var(--sol) 60%, #E07B1F);
+      box-shadow: 0 0 10px rgba(245, 184, 65, 0.8);
+    }
+    .controles .espaco { flex: 1; }
+    .botao-chip {
+      background: transparent;
+      border: 1px solid var(--linha);
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      white-space: nowrap;
+    }
+    .botao-chip[aria-pressed="true"] { background: rgba(245, 184, 65, 0.18); border-color: rgba(245, 184, 65, 0.6); }
+    .velocidade { display: flex; align-items: center; gap: 6px; font-size: 0.8rem; color: var(--texto-suave); }
+    .velocidade input { width: 80px; accent-color: var(--sol); }
+    .velocidade output { min-width: 2.6em; color: var(--texto); font-variant-numeric: tabular-nums; }
+
+    .aviso {
+      position: fixed;
+      left: 50%;
+      bottom: calc(env(safe-area-inset-bottom, 0px) + 28px);
+      transform: translateX(-50%);
+      z-index: 15;
+      width: min(88vw, 380px);
+      padding: 16px 18px;
+      background: var(--vidro);
+      border: 1px solid var(--linha);
+      border-radius: var(--raio);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      text-align: center;
+      transition: opacity 0.3s;
+    }
+    .aviso h2 { margin: 0 0 4px; font-size: 1.05rem; font-weight: 600; }
+    .aviso p { margin: 0; font-size: 0.88rem; line-height: 1.45; color: var(--texto-suave); }
+    .aviso.erro { border-color: rgba(255, 120, 100, 0.6); }
+    .escondido { opacity: 0; pointer-events: none; }
+
+    .painel {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 30;
+      max-width: 560px;
+      margin: 0 auto;
+      background: var(--vidro-forte);
+      border: 1px solid var(--linha);
+      border-bottom: none;
+      border-radius: 24px 24px 0 0;
+      padding: 18px 20px calc(env(safe-area-inset-bottom, 0px) + 18px);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      transform: translateY(105%);
+      transition: transform 0.35s cubic-bezier(.2, .8, .2, 1);
+      max-height: 62vh;
+      overflow-y: auto;
+    }
+    .painel.aberto { transform: translateY(0); }
+    @media (prefers-reduced-motion: reduce) { .painel { transition: none; } }
+
+    .painel-topo { display: flex; align-items: center; gap: 14px; }
+    .bolinha {
+      flex: none;
+      width: 46px; height: 46px; border-radius: 50%;
+      background: var(--destaque);
+      box-shadow: inset -8px -6px 14px rgba(0, 0, 0, 0.45), 0 0 18px color-mix(in srgb, var(--destaque) 45%, transparent);
+    }
+    .painel h2 { margin: 0; font-size: 1.6rem; font-weight: 700; line-height: 1.1; color: var(--destaque); }
+    .painel .tipo { margin: 2px 0 0; font-size: 0.85rem; color: var(--texto-suave); }
+    .painel-topo .espaco { flex: 1; }
+    .botao-redondo {
+      width: 38px; height: 38px; border-radius: 50%;
+      border: 1px solid var(--linha); background: transparent;
+      font-size: 1.15rem; line-height: 1;
+      display: grid; place-items: center;
+    }
+
+    .fatos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px 16px;
+      margin: 16px 0 14px;
+    }
+    .fatos div { border-left: 2px solid color-mix(in srgb, var(--destaque) 60%, transparent); padding-left: 10px; }
+    .fatos dt { font-size: 0.75rem; color: var(--texto-suave); }
+    .fatos dd { margin: 2px 0 0; font-size: 0.98rem; font-weight: 600; }
+
+    .curiosidade { margin: 0; font-size: 0.92rem; line-height: 1.55; color: var(--texto); }
+    .curiosidade strong { color: var(--destaque); font-weight: 600; }
+
+    .navegacao { display: flex; gap: 10px; margin-top: 16px; }
+    .navegacao button {
+      flex: 1;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid var(--linha);
+      background: rgba(255, 255, 255, 0.05);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 420px) {
+      .controles .titulo span { display: none; }
+      .velocidade input { width: 64px; }
+    }
+  </style>
+</head>
+<body>
+
+  <a-scene
+    mindar-image="imageTargetSrc: marcador.mind; uiScanning: no; uiLoading: yes"
+    color-space="sRGB"
+    renderer="colorManagement: true"
+    vr-mode-ui="enabled: false"
+    device-orientation-permission-ui="enabled: false">
+
+    <!-- A câmera transforma toques na tela em cliques nos objetos com a classe "clicavel" -->
+    <a-camera position="0 0 0" look-controls="enabled: false"
+      cursor="fuse: false; rayOrigin: mouse"
+      raycaster="far: 10000; objects: .clicavel"></a-camera>
+
+    <a-entity light="type: ambient; intensity: 0.35"></a-entity>
+
+    <a-entity id="alvo" mindar-image-target="targetIndex: 0">
+      <!-- Girado 90° para o sistema ficar "deitado" sobre a imagem -->
+      <a-entity id="sistema" rotation="90 0 0" position="0 0 0.08" scale="0.75 0.75 0.75"></a-entity>
+    </a-entity>
+  </a-scene>
+
+  <div class="controles" role="toolbar" aria-label="Controles da simulação">
+    <div class="titulo"><span>Sistema Solar</span></div>
+    <div class="espaco"></div>
+    <label class="velocidade">
+      Velocidade
+      <input id="velocidade" type="range" min="0.25" max="4" step="0.25" value="1" aria-label="Velocidade das órbitas">
+      <output id="velocidadeValor">1×</output>
+    </label>
+    <button id="btnPausa" class="botao-chip" aria-pressed="false">Pausar</button>
+    <button id="btnOrbitas" class="botao-chip" aria-pressed="true">Órbitas</button>
+  </div>
+
+  <div id="aviso" class="aviso">
+    <h2>Carregando a câmera…</h2>
+    <p>Permita o acesso à câmera quando o navegador pedir.</p>
+  </div>
+
+  <section id="painel" class="painel" aria-live="polite" aria-hidden="true">
+    <div class="painel-topo">
+      <div class="bolinha" aria-hidden="true"></div>
+      <div>
+        <h2 id="painelNome"></h2>
+        <p class="tipo" id="painelTipo"></p>
+      </div>
+      <div class="espaco"></div>
+      <button id="btnFechar" class="botao-redondo" aria-label="Fechar informações">×</button>
+    </div>
+    <dl class="fatos" id="painelFatos"></dl>
+    <p class="curiosidade" id="painelCuriosidade"></p>
+    <div class="navegacao">
+      <button id="btnAnterior">‹ Anterior</button>
+      <button id="btnProximo">Próximo ›</button>
+    </div>
+  </section>
+
+</body>
+</html>
